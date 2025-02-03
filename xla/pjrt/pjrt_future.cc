@@ -43,6 +43,7 @@ struct State {
 }  // namespace
 
 PjRtFuture<> JoinFutures(absl::Span<const PjRtFuture<>> futures) {
+  LOG(INFO) << "JoinFutures futures.size:" << futures.size();
   if (futures.empty()) {
     return PjRtFuture<>(absl::OkStatus());
   } else if (futures.size() == 1) {
@@ -51,8 +52,12 @@ PjRtFuture<> JoinFutures(absl::Span<const PjRtFuture<>> futures) {
 
   auto state = std::make_shared<State>(futures.size());
 
-  for (const PjRtFuture<>& future : futures) {
+  // for (const PjRtFuture<>& future : futures) {
+  for (int i = 0; i < futures.size(); ++i) {
+    const PjRtFuture<>& future = futures[i];
+    LOG(INFO) << "JoinFutures future:" << i;
     future.OnReady([state](absl::Status status) {
+      LOG(INFO) << "JoinFutures.OnReady status:" << status;
       if (!status.ok()) {
         absl::MutexLock lock(&state->mu);
         if (VLOG_IS_ON(2)) {
@@ -67,10 +72,12 @@ PjRtFuture<> JoinFutures(absl::Span<const PjRtFuture<>> futures) {
       const int pending_count =
           state->pending_count.fetch_sub(1, std::memory_order_acq_rel);
       CHECK_GE(pending_count, 1) << "Pending count can't drop below 0";
+      LOG(INFO) << "JoinFutures.OnReady pending_count:" << pending_count;
 
-      if (pending_count == 1) {
+      if (pending_count == 1 || !status.ok()) {
         absl::MutexLock lock(&state->mu);
         state->promise.Set(std::move(state->status));
+        LOG(INFO) << "JoinFutures.OnReady state->promise.Set";
       }
     });
   }
@@ -79,3 +86,4 @@ PjRtFuture<> JoinFutures(absl::Span<const PjRtFuture<>> futures) {
 }
 
 }  // namespace xla
+

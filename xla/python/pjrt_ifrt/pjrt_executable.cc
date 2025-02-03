@@ -611,15 +611,20 @@ PjRtLoadedExecutable::Execute(
     }
   }
 
-  if (!all_loaded_host_callbacks_->empty()) {
-    // For host callbacks to work, returned futures must be supported so that we
-    // can use the futures to extend the lifetime of the host callbacks until
-    // the execution finishes.
-    status.OnReady([all_loaded_host_callbacks = all_loaded_host_callbacks_,
-                    host_callback_states =
-                        std::move(host_callback_states)](absl::Status) mutable {
-      all_loaded_host_callbacks.reset();
-    });
+  // if (!all_loaded_host_callbacks_->empty()) {
+  //   // For host callbacks to work, returned futures must be supported so that we
+  //   // can use the futures to extend the lifetime of the host callbacks until
+  //   // the execution finishes.
+  //   status.OnReady([all_loaded_host_callbacks = all_loaded_host_callbacks_,
+  //                   host_callback_states =
+  //                       std::move(host_callback_states)](absl::Status) mutable {
+  //     all_loaded_host_callbacks.reset();
+  //   });
+  // }
+  absl::Status abslstatus = status.Await();
+  VLOG(3) << "Joint status: " << abslstatus;
+  if (!abslstatus.ok()) {
+    return Internal("!abslstatus.ok()");
   }
 
   // Convert 2-level PjRtBuffer vectors into an Array vector.
